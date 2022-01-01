@@ -20,7 +20,7 @@ class Layer_Dense:
         # the shape of the weights needs to be x,y
         # where x - number of neurons, y - number of features in one sample.
         # but here we initiliaze as (input_features, neurons) to avoid doing the transpose on forward pass.
-        self.weights = 0.01 * np.random.randn(n_inputs, n_neurons)
+        self.weights = 0.1 * np.random.randn(n_inputs, n_neurons)
         self.biases = np.zeros((1, n_neurons))
 
         # lambda parameter for L1 and L2 regularization
@@ -131,6 +131,14 @@ class Activation_Sigmoid:
     def backward(self, dvalues):
         self.dinputs = dvalues *  (1.0 - self.outputs) * self.outputs
 
+class Activation_Linear:
+    def forward(self, inputs):
+        self.inputs = inputs
+        self.outputs = inputs
+    
+    def backward(self, dvalues):
+        self.dinputs = dvalues * 1 # derivative of f(x) with x is 1
+
 class Loss:
     def calculate(self, output, y):
         # Calculate sample losses
@@ -224,6 +232,40 @@ class Loss_BinaryCrossEntropy(Loss):
 
     def regularization_loss (self , layer):
         return super().regularization_loss(layer)
+
+class Loss_MeanSquaredError(Loss):
+    def forward(self, y_pred, y_true):
+        # calculate loss.
+        sample_losses = np.mean((y_pred - y_true) ** 2, axis=-1)
+        return sample_losses
+
+    def backward(self, dvalues, y_true):
+        # Number of samples
+        n_samples = len (dvalues)
+
+        n_outputs_per_sample = len(dvalues[ 0 ])
+        # Gradient on values
+        self.dinputs = - 2 * (y_true - dvalues) / n_outputs_per_sample
+
+        # Normalize gradient
+        self.dinputs = self.dinputs / n_samples
+
+class Loss_MeanAbsoluteError(Loss):
+    def forward(self, y_pred, y_true):
+        # calculate loss.
+        sample_losses = np.mean(np.abs(y_pred - y_true), axis=-1)
+        return sample_losses
+
+    def backward(self, dvalues, y_true):
+        # Number of samples
+        n_samples = len (dvalues)
+
+        n_outputs_per_sample = len(dvalues[ 0 ])
+        # Gradient on values
+        self.dinputs = np.sign(y_true - dvalues) / n_outputs_per_sample
+
+        # Normalize gradient
+        self.dinputs = self.dinputs / n_samples
 
 class Activation_Softmax_Loss_CategoricalCrossEntropy():
     '''
