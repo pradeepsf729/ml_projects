@@ -19,3 +19,11 @@ to try out mnist data on cnn network created with numpy an python
 > cd cnn
 
 > python cnn.py
+
+to try out the pre-trained resnet network on any image
+
+> cd deep_learning/pre_trained_models
+
+> cd resnet
+
+> python test_resnet101.py <image_file>
