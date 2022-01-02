@@ -8,7 +8,9 @@ clone the project
 
 > cd basic_nn
 
->  python nn_test_util.py
+>  python nn_test_binary.py
+
+>  python nn_test_regression.py
 
 to try out mnist data on cnn network created with numpy an python
 
