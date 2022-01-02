@@ -1,6 +1,5 @@
-import numpy as np
-
 from nn import *
+import numpy as np
 from model import Model
 
 # for data generation for testing.
@@ -15,11 +14,8 @@ def create_data(samples, classes):
         y[ix] = class_number
     return X, y
 
-X, y = create_data(samples=1000, classes=2)
-y = y.reshape(-1, 1)
-
-X_test, y_test = create_data(samples=100, classes=2)
-y_test = y_test.reshape(-1, 1)
+X, y = create_data(samples=100, classes=3)
+X_test, y_test = create_data(samples=100, classes=3)
 
 # lambda values for regularization
 regularization_params = {'weight_regularizer_l2' : 5e-4, 
@@ -29,13 +25,13 @@ regularization_params = {'weight_regularizer_l2' : 5e-4,
 model = Model()
 
 # add layers
-model.add(Layer_Dense(2, 64, **regularization_params))
+model.add(Layer_Dense(2, 512, **regularization_params))
 model.add(Activation_ReLU())
-model.add(Layer_Dropout())
-model.add(Layer_Dense(64, 1))
-model.add(Activation_Sigmoid())
+model.add(Layer_Dropout( 0.1 ))
+model.add(Layer_Dense(512, 3))
+model.add(Activation_Softmax())
 
-loss = Loss_BinaryCrossEntropy()
+loss = Loss_CategoricalCrossEntropy()
 optimizer = Optimizer_Adam(decay = 5e-7)
 accuracy = Accuracy_Categorical()
 

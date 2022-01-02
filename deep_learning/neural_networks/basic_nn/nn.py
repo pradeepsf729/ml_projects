@@ -29,7 +29,7 @@ class Layer_Dense:
         self.bias_regularizer_l1 = bias_regularizer_l1
         self.bias_regularizer_l2 = bias_regularizer_l2
 
-    def forward(self, inputs):
+    def forward(self, inputs, training):
         '''
         Calculates one forward pass with this network weights
         and biases with given inputs.
@@ -74,11 +74,20 @@ class Layer_Dense:
         # Gradients on values.
         self.dinputs = np.dot(dvalues, self.weights.T)
 
+class Layer_Input:
+    '''
+    Class indicates the input layer.
+    There is no backward pass for this as this is used to
+    just to act as input layer for forward pass
+    '''
+    def forward(self, inputs, training):
+        self.outputs = inputs
+
 class Activation_ReLU:
     '''
     Performs ReLU activation on any given layer.
     '''
-    def forward(self, inputs):
+    def forward(self, inputs, training):
         self.inputs = inputs
         self.outputs = np.maximum(0, inputs)
 
@@ -91,11 +100,15 @@ class Activation_ReLU:
         # ReLU(x > 0) = x
         self.dinputs[self.inputs < 0] = 0
 
+    # Calculate predictions for outputs
+    def predictions ( self , outputs ):
+        return outputs
+
 class Activation_Softmax:
     '''
     Class to perform Softmax on given inputs
     '''
-    def forward(self, inputs):
+    def forward(self, inputs, training):
         self.inputs = inputs
         exp_values = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
         each_row_sum = np.sum(exp_values, axis=1, keepdims=True)
@@ -120,45 +133,72 @@ class Activation_Softmax:
             
             self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
 
-class Activation_Sigmoid:
-    def __init__(self):
-        pass
+    def predictions(self, outputs):
+        '''
+        Predictions from a softmax layer,
+        - maximum probability of the outputs from each sample.
+        '''
+        return np.argmax(outputs, axis=1)
 
-    def forward(self, inputs):
+class Activation_Sigmoid:
+    def __init__(self, threshold=0.5):
+        self.threshold = threshold
+
+    def forward(self, inputs, training):
         self.inputs = inputs
         self.outputs = 1.0 / (1.0 + np.exp(-inputs))
     
     def backward(self, dvalues):
         self.dinputs = dvalues *  (1.0 - self.outputs) * self.outputs
 
+    def predictions(self, outputs):
+        return (outputs > self.threshold) * 1
+
 class Activation_Linear:
-    def forward(self, inputs):
+    def forward(self, inputs, training):
         self.inputs = inputs
         self.outputs = inputs
     
     def backward(self, dvalues):
         self.dinputs = dvalues * 1 # derivative of f(x) with x is 1
 
+    def predictions(self, outputs):
+        '''
+        Considering y= f(x) as liner method.
+        '''
+        return outputs
+
 class Loss:
-    def calculate(self, output, y):
+    
+    # Set/remember trainable layers
+    def remember_trainable_layers ( self , trainable_layers ):
+        self.trainable_layers = trainable_layers
+
+    def calculate(self, output, y, *, include_regularization = False):
         # Calculate sample losses
         sample_losses = self.forward(output, y)
-        return np.mean(sample_losses) # average loss of all samples.
+        data_loss = np.mean(sample_losses)
+        if not include_regularization:
+            return data_loss
+        
+        reg_loss = self.regularization_loss()
+        return data_loss, reg_loss
 
-    def regularization_loss ( self , layer ):
+    def regularization_loss (self):
         regularization_loss = 0
 
-        if layer.weight_regularizer_l1 > 0:
-            regularization_loss += layer.weight_regularizer_l1 * np.sum(np.abs(layer.weights))
+        for layer in self.trainable_layers:
+            if layer.weight_regularizer_l1 > 0:
+                regularization_loss += layer.weight_regularizer_l1 * np.sum(np.abs(layer.weights))
 
-        if layer.weight_regularizer_l2 > 0:
-            regularization_loss += layer.weight_regularizer_l2 * np.sum(layer.weights * layer.weights)
-        
-        if layer.bias_regularizer_l1 > 0:
-            regularization_loss += layer.bias_regularizer_l1 * np.sum(np.abs(layer.biases))
+            if layer.weight_regularizer_l2 > 0:
+                regularization_loss += layer.weight_regularizer_l2 * np.sum(layer.weights * layer.weights)
+            
+            if layer.bias_regularizer_l1 > 0:
+                regularization_loss += layer.bias_regularizer_l1 * np.sum(np.abs(layer.biases))
 
-        if layer.bias_regularizer_l2 > 0:
-            regularization_loss += layer.bias_regularizer_l2 * np.sum(layer.biases * layer.biases)
+            if layer.bias_regularizer_l2 > 0:
+                regularization_loss += layer.bias_regularizer_l2 * np.sum(layer.biases * layer.biases)
 
         return regularization_loss
 
@@ -230,9 +270,6 @@ class Loss_BinaryCrossEntropy(Loss):
         # Normalize gradient
         self.dinputs = self.dinputs / n_samples
 
-    def regularization_loss (self , layer):
-        return super().regularization_loss(layer)
-
 class Loss_MeanSquaredError(Loss):
     def forward(self, y_pred, y_true):
         # calculate loss.
@@ -276,15 +313,6 @@ class Activation_Softmax_Loss_CategoricalCrossEntropy():
         self.activation = Activation_Softmax()
         self.loss = Loss_CategoricalCrossEntropy()
 
-    def forward(self, inputs, y_true):
-
-        # calculate the softmax.
-        self.activation.forward(inputs)
-        self.output = self.activation.outputs
-
-        # Calculate and return loss value
-        return self.loss.calculate(self.output, y_true)
-
     def backward(self, dvalues, y_true):
         # total sample inputs
         n_samples = len(dvalues)
@@ -304,6 +332,48 @@ class Activation_Softmax_Loss_CategoricalCrossEntropy():
 
     def regularization_loss (self , layer):
         return self.loss.regularization_loss(layer)
+
+class Accuracy:
+    def calculate(self, predictions, y):
+        # Get comparison results
+        comparisons = self.compare(predictions, y)
+
+        # Calculate an accuracy
+        accuracy = np.mean(comparisons)
+        
+        # Return accuracy
+        return accuracy
+
+class Accuracy_Categorical(Accuracy):
+    def init(self, y=None):
+        # no initialization parameters
+        pass
+
+    def compare(self, predictions, y):
+        # if already one-hot encoded, remove it
+        if len(y.shape) == 2:
+            y = np.argmax(y, axis=1)
+
+        return predictions == y
+
+class Accuracy_Regression(Accuracy):
+    def __init__(self):
+        self.precision = None
+    
+    def init(self, y, reinit=False):
+        '''
+        Some types need some parameter to calculate accuracy.
+        For regression, we calculate the precision, (by how much
+        the predicted value can go wrong)
+        '''
+        if self.precision is None or reinit:
+            self.precision = np.std(y) / 250
+    
+    def compare(self, predictions, y):
+        '''
+        Returns number of correct predictions
+        '''
+        return np.abs(predictions - y) < self.precision
 
 class Optimizer_SGD:
     '''
@@ -508,13 +578,21 @@ class Layer_Dropout:
     '''
     Class to implement the dropout for any layer
     '''
-    def __init__(self, rate):
+    def __init__(self, rate=0.01):
         self.rate = 1 - rate
     
-    def forward(self, inputs):
+    def forward(self, inputs, training):
         self.inputs = inputs
+
+        # forward could be called during validation
+        # of the model, dropout should not be done
+        # on such cases.
+        if not training:
+            self.outputs = inputs
+            return
+
         self.binary_mask = np.random.binomial( 1 , self.rate, size = inputs.shape) / self.rate
-        self.output = inputs * self.binary_mask
+        self.outputs = inputs * self.binary_mask
 
     def backward(self, dvalues):
         self.dinputs = dvalues * self.binary_mask
