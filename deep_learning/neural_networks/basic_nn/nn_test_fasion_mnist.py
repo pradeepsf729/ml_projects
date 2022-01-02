@@ -15,3 +15,9 @@ print ( 'Unzipping images...' )
 with ZipFile(FILE) as zip_images:
     zip_images.extractall(FOLDER)
 print ( 'Done!' )
+
+# Images to data point conversion
+
+# create networks using Model from model.py
+
+# train and validate
