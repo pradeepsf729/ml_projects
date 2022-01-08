@@ -216,6 +216,32 @@ class Model:
         print('Loss - ', validation_loss)
         print('Accuracy - ', validation_accuracy)
 
+    def predict(self, X, *, batch_size=None):
+        '''
+        Predicts the output for given inputs with current model
+        '''
+        if batch_size is None:
+            prediction_steps = 1
+        else:
+            prediction_steps = len(X) // batch_size
+
+            if prediction_steps * batch_size < len(X):
+                prediction_steps += 1 # leftover samples (last batch)
+
+        # Model outputs
+        output = []
+
+        for step in range(prediction_steps):
+            if batch_size is None:
+                step_X = X  #total at once
+            else:
+                step_X = X[step * batch_size : (step + 1) * batch_size]
+
+            batch_output = self.forward(step_X, training = False )
+            output.append(batch_output)
+        
+        return np.vstack(output) # flatten the inside arrays
+
     def get_parameters(self):
         # get the the weights and biases of all 
         # the trainable layers.(which has weights and biases)

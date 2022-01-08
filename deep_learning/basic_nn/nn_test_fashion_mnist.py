@@ -10,6 +10,8 @@ import imageio
 import numpy as np
 from model import Model
 from nn import *
+import matplotlib.pyplot as plt
+import cv2
 
 # inference
 # test some random images
@@ -160,31 +162,61 @@ def evaluate_model_with_given_weights(model_parameters):
         print('Actual - ', labels[y_test[ind]])
         print('*' * 24)
 
+if __name__ == '__main__':
+    ## Get the parameters of previous model and load and try new model without training.
 
-## Get the parameters of previous model and load and try new model without training.
+    X, y, X_test, y_test = prepare_train_test_data()
 
-X, y, X_test, y_test = prepare_train_test_data()
+    model = train_model_with_64_64_network(X, y, X_test, y_test)
+    model = train_model_with_128_128_network(X, y, X_test, y_test)
 
-model = train_model_with_64_64_network(X, y, X_test, y_test)
-model = train_model_with_128_128_network(X, y, X_test, y_test)
+    print('Evaluating model with loading pre-trained parameters')
+    evaluate_model_with_given_weights(model.get_parameters())
 
-print('Evaluating model with loading pre-trained parameters')
-evaluate_model_with_given_weights(model.get_parameters())
+    # loading params into file (persisting parameters)
+    model.save_parameters('fashion_mnist.params')
 
-# loading params into file (persisting parameters)
-model.save_parameters('fashion_mnist.params')
+    #model.load_parameters('fashion_mnist.params')
+    loaded_params = model.get_parameters()
 
-#model.load_parameters('fashion_mnist.params')
-loaded_params = model.get_parameters()
+    print('Evaluating model with params loaded from file')
+    evaluate_model_with_given_weights(loaded_params)
 
-print('Evaluating model with params loaded from file')
-evaluate_model_with_given_weights(loaded_params)
+    print('Evaluating model with total model loaded from file')
+    # saving the entire model to a file (instead of just params)
+    model.save('fashion_mnist.model')
 
+    model_new = Model.load('fashion_mnist.model')
+    # check the accuracy.
+    model_new.evaluate(X_test, y_test)
 
-print('Evaluating model with total model loaded from file')
-# saving the entire model to a file (instead of just params)
-model.save('fashion_mnist.model')
+    # testing the model with realtime image.
+    image_files = ['tshirt.png', 'pants.png']
 
-model_new = Model.load('fashion_mnist.model')
-# check the accuracy.
-model.evaluate(X_test, y_test)
+    for img_file in image_files:
+        # load the image, convert to grey scale
+        image_data = cv2.imread( img_file , cv2.IMREAD_GRAYSCALE)
+
+        # convert to data array and compress to pixel size of that network can take (28 * 28)
+        image_data = cv2.resize(image_data, ( 28 , 28 ))
+
+        # the images thatwere trained were with black background,
+        # we need to invert so make the test image as same.
+        image_data = 255 - image_data
+
+        # reshape to n_sample * 784 (28 * 28 pixels flattened)
+        image_data = image_data.reshape( 1 , - 1 ).astype(np.float32)
+
+        # scaling to [-1 , 1]
+        image_data = (image_data - 127.5) / 127.5
+
+        # predict the outcome
+        model_preds = model_new.predict(image_data)
+
+        # for a categorical classifier, the output will be set of probabilities (softmax)
+        # selecting max probability for each sample outcome
+        predicted_class = np.argmax(model_preds, axis=1)
+
+        for res in predicted_class:
+            print('image - ', img_file, ' item predicted - ', labels[res])
+
