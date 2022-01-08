@@ -15,6 +15,5 @@ node_modules/
 
 fashion_mnist_images.*
 fashion_mnist.params
-fashion_mnist.model
 fashion_mnist_images/
 */fashion_mnist_images/*

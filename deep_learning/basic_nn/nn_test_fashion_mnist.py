@@ -12,6 +12,7 @@ from model import Model
 from nn import *
 import matplotlib.pyplot as plt
 import cv2
+import sys
 
 # inference
 # test some random images
@@ -131,7 +132,7 @@ def train_model_with_64_64_network(X, y, X_test, y_test):
 def train_model_with_128_128_network(X, y, X_test, y_test):
     return train_and_test_nn_model(X, y, X_test, y_test, 128)
 
-def evaluate_model_with_given_weights(model_parameters):
+def evaluate_model_with_given_weights(X, y, X_test, y_test, model_parameters):
     # create new model, but not training
     model = Model()
     model.add(Layer_Dense(X.shape[1], 128))
@@ -162,7 +163,8 @@ def evaluate_model_with_given_weights(model_parameters):
         print('Actual - ', labels[y_test[ind]])
         print('*' * 24)
 
-if __name__ == '__main__':
+
+def test_train_fanshion_mnist():
     ## Get the parameters of previous model and load and try new model without training.
 
     X, y, X_test, y_test = prepare_train_test_data()
@@ -171,7 +173,7 @@ if __name__ == '__main__':
     model = train_model_with_128_128_network(X, y, X_test, y_test)
 
     print('Evaluating model with loading pre-trained parameters')
-    evaluate_model_with_given_weights(model.get_parameters())
+    evaluate_model_with_given_weights(X, y, X_test, y_test, model.get_parameters())
 
     # loading params into file (persisting parameters)
     model.save_parameters('fashion_mnist.params')
@@ -180,7 +182,7 @@ if __name__ == '__main__':
     loaded_params = model.get_parameters()
 
     print('Evaluating model with params loaded from file')
-    evaluate_model_with_given_weights(loaded_params)
+    evaluate_model_with_given_weights(X, y, X_test, y_test, loaded_params)
 
     print('Evaluating model with total model loaded from file')
     # saving the entire model to a file (instead of just params)
@@ -190,8 +192,14 @@ if __name__ == '__main__':
     # check the accuracy.
     model_new.evaluate(X_test, y_test)
 
+def test_real_image(image_file=None):
+    model_new = Model.load('fashion_mnist.model')
+
     # testing the model with realtime image.
-    image_files = ['tshirt.png', 'pants.png']
+    if image_file:
+        image_files = [image_file]
+    else:
+        image_files = ['tshirt.png', 'pants.png', 'jeans.png']
 
     for img_file in image_files:
         # load the image, convert to grey scale
@@ -220,3 +228,12 @@ if __name__ == '__main__':
         for res in predicted_class:
             print('image - ', img_file, ' item predicted - ', labels[res])
 
+if __name__ == '__main__':
+    # comment below line, for direct netowrk prediction
+    # test_train_fanshion_mnist()
+
+    if len(sys.argv) < 2:
+        test_real_image()
+    else:
+        image_file = sys.argv[1]
+        test_real_image(image_file)
