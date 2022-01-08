@@ -74,6 +74,21 @@ class Layer_Dense:
         # Gradients on values.
         self.dinputs = np.dot(dvalues, self.weights.T)
 
+    def get_parameters(self):
+        '''
+        Mostly used after training to check
+        the weights and biases
+        '''
+        return self.weights, self.biases
+
+    def set_parameters(self, weights, biases):
+        '''
+        Sets the given weights and biases to this layer.
+        Can be used to setup the layer withotu training
+        '''
+        self.weights = weights
+        self.biases = biases
+    
 class Layer_Input:
     '''
     Class indicates the input layer.
@@ -174,10 +189,30 @@ class Loss:
     def remember_trainable_layers ( self , trainable_layers ):
         self.trainable_layers = trainable_layers
 
+    # Reset variables for accumulated loss
+    def new_pass ( self ):
+        self.accumulated_sum = 0
+        self.accumulated_count = 0
+
     def calculate(self, output, y, *, include_regularization = False):
         # Calculate sample losses
         sample_losses = self.forward(output, y)
         data_loss = np.mean(sample_losses)
+
+        # Add accumulated sum of losses and sample count
+        self.accumulated_sum += np.sum(sample_losses)
+        self.accumulated_count += len(sample_losses)
+
+        if not include_regularization:
+            return data_loss
+        
+        reg_loss = self.regularization_loss()
+        return data_loss, reg_loss
+
+    def calculate_accumulated(self, *, include_regularization=False):
+        # calculate mean loss
+        data_loss = self.accumulated_sum / self.accumulated_count
+
         if not include_regularization:
             return data_loss
         
@@ -340,9 +375,23 @@ class Accuracy:
 
         # Calculate an accuracy
         accuracy = np.mean(comparisons)
-        
+
+        # Add accumulated sum of matching values and sample count
+        self.accumulated_sum += np.sum(comparisons)
+        self.accumulated_count += len (comparisons)
+
         # Return accuracy
         return accuracy
+
+    def calculate_accumulated(self):
+        # average of accuracy of all the batches.
+        accuracy = self.accumulated_sum / self.accumulated_count
+        return accuracy
+
+    # Reset variables for accumulated accuracy
+    def new_pass ( self ):
+        self.accumulated_sum = 0
+        self.accumulated_count = 0
 
 class Accuracy_Categorical(Accuracy):
     def init(self, y=None):
