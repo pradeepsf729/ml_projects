@@ -38,7 +38,41 @@ def normalize(batch_images):
             batch_img[:, c] =  (batch_img[:, c] - mean) / std
     print(batch_images[0][:1, :])
 
-res = load_images('image-cats')
-print(res[0][:1, :])
+def one_hot_encoding_words(text, token_char='\n'):
+    all_words = text.replace(token_char, ' ').split()
+    punctuations = '.,;:"!?”“_-'
+    all_words = [word.strip(punctuations) for word in all_words]
 
-normalize(res)
+    all_unique_words = sorted(set(all_words))
+    word2index_dict = {word: i for i, word in enumerate(all_unique_words)}
+
+    all_lines = text.split('\n')
+    one_line = all_lines[0]
+    one_line = one_line.strip(punctuations)
+    one_line_words = [word.strip(punctuations) for word in one_line.split()]
+
+    if len(one_line) > 0:
+        one_hot_tensor = torch.zeros(len(one_line), len(word2index_dict))
+        print('Word index size - ', len(word2index_dict))
+        for i, word in enumerate(one_line_words):
+            word_ind = word2index_dict[word]
+            # mark that word index to 1, remaining zeros
+            one_hot_tensor[i][word_ind] = 1
+
+        print(one_hot_tensor.shape)
+        #print(one_hot_tensor)
+
+# res = load_images('image-cats')
+# print(res[0][:1, :])
+
+# res = load_images('image-dogs')
+# print(res[0][:1, :])
+#normalize(res)
+
+# usaing same novel text
+one_hot_encoding_words(open('data/1342-0.txt').read())
+
+# using python source code.
+one_hot_encoding_words(open('../basic_nn/nn.py').read(), 'r"[^a-zA-Z0-9_]+"')
+
+
